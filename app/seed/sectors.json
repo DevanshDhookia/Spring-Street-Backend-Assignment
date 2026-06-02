@@ -1,0 +1,13 @@
+[
+  {"code": "TECH",     "name": "Technology"},
+  {"code": "FIN",      "name": "Financial Services"},
+  {"code": "HLTH",     "name": "Healthcare"},
+  {"code": "CONS_CYC", "name": "Consumer Cyclical"},
+  {"code": "INDU",     "name": "Industrials"},
+  {"code": "COMM",     "name": "Communication Services"},
+  {"code": "CONS_DEF", "name": "Consumer Defensive"},
+  {"code": "ENGY",     "name": "Energy"},
+  {"code": "MATR",     "name": "Basic Materials"},
+  {"code": "REIT",     "name": "Real Estate"},
+  {"code": "UTIL",     "name": "Utilities"}
+]
