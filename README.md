@@ -68,6 +68,22 @@ Built the system phase by phase, committing each layer independently:
 
 ---
 
+## Live Demo
+
+The system is deployed and running with 3 years of seeded market data:
+
+| | URL |
+|---|---|
+| **Frontend console** | https://spring-street-backend-assignment.onrender.com |
+| **API docs (Swagger)** | https://spring-street-backend-assignment.onrender.com/docs |
+| **Health check** | https://spring-street-backend-assignment.onrender.com/health |
+
+> The free Render instance spins down after 15 minutes of inactivity — the first request may take ~30 seconds to wake up.
+
+**Stack on Render:** FastAPI web service · Render Postgres · Render Redis (Key Value)
+
+---
+
 ## For Evaluators — Getting Everything Running
 
 ### Step 1 — Start the services
