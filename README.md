@@ -6,6 +6,72 @@ Backend system powering the daily factsheet for **Global Growth Prisma**, a glob
 
 ---
 
+## Assignment Goals
+
+> *Design and implement systems that can power the Prisma factsheet/product experience.*
+> Reference: [springstreet.in/products/prisma/global-growth-prisma](https://springstreet.in/products/prisma/global-growth-prisma)
+
+The assignment asked candidates to think through:
+
+| Area | What was required |
+|---|---|
+| **Database schema design** | Model all data needed to power a SEBI-compliant factsheet |
+| **Backend architecture** | Design a layered, maintainable system |
+| **Data pipelines / ETL** | Fetch, transform, and store market data daily |
+| **API design** | Clean REST endpoints for frontend consumption |
+| **Data freshness** | Systems that update factsheet data daily without downtime |
+| **Market cap exposure** | Classify holdings into large / mid / small / micro cap |
+| **Country / region exposure** | Group holdings by domicile and MSCI region |
+| **Sector exposure** | Map holdings to GICS sectors |
+| **Holdings datasets** | Admin-managed portfolio with SCD2 history |
+
+---
+
+## My Approach
+
+### Step 1 — Domain Study
+Before writing any code I studied the live Prisma factsheet and built a **data source matrix** — mapping every field on the factsheet to its source (yfinance, static config, or computed), storage format, and freshness requirement.
+
+→ **[docs/Domain_Study.pdf](docs/Domain_Study.pdf)**
+
+### Step 2 — System Architecture
+Using the domain study, I designed a 3-layer architecture before writing any code:
+
+```
+INGESTION  →  STORAGE  →  SERVE
+```
+
+- **Ingestion:** APScheduler triggers a 5-stage pipeline (prices → FX → classification → derive → cache)
+- **Storage:** PostgreSQL for durable relational data; Redis for sub-millisecond factsheet reads
+- **Serve:** FastAPI with separate public and admin route groups
+
+Key decisions made at this stage: atomic pipeline transaction (never show a partial factsheet), SCD2 for holdings and classification history, separate URL per data type, Redis populated only after DB commit.
+
+→ **[docs/System_Architecture.pdf](docs/System_Architecture.pdf)**
+
+### Step 3 — Implementation
+Built the system phase by phase, committing each layer independently:
+
+| Phase | What was built |
+|---|---|
+| 1 | Project scaffold — FastAPI, Docker Compose, Alembic, app skeleton |
+| 2 | 15-table PostgreSQL schema with full Alembic migration and downgrade |
+| 3 | Seed data — 47 regions, 11 sectors, sample AMC/product/holdings |
+| 4 | 5-stage data pipeline with atomic commit and Redis cache warming |
+| 5 | Public read API — 8 endpoints including growth-of-₹10k series |
+| 6 | Admin API — holdings CRUD (SCD2), pipeline trigger, audit log |
+| 7 | APScheduler wiring, Docker fixes, backfill script, frontend dev console |
+
+### What I prioritised
+- **Correctness over shortcuts** — atomic pipeline transaction means users never see stale/partial data
+- **Financial precision** — `NUMERIC` types throughout, never `FLOAT`
+- **History preservation** — SCD2 on holdings and classifications for point-in-time queries
+- **Evaluator experience** — working frontend, one-command backfill, 6 documentation files
+
+→ **[docs/06_design_decisions.md](docs/06_design_decisions.md)** — every architectural decision with rationale
+
+---
+
 ## For Evaluators — Getting Everything Running
 
 ### Step 1 — Start the services
@@ -15,7 +81,8 @@ cp .env.example .env
 docker compose up --build
 ```
 
-Starts PostgreSQL, Redis, and the FastAPI server. Wait until you see `Uvicorn running on http://0.0.0.0:8000`.
+Starts PostgreSQL (port 5433), Redis (port 6379), and the FastAPI server (port 8000).  
+Wait until you see `Uvicorn running on http://0.0.0.0:8000`.
 
 ### Step 2 — Migrate + seed (in a second terminal)
 
@@ -28,21 +95,16 @@ Creates all 15 tables and seeds one fund product with 12 holdings, 4 plans, and 
 
 ### Step 3 — Backfill historical data
 
-Run this from your **host terminal** (not inside Docker) — yfinance fetches data using your machine's IP:
+Run from your **host terminal** (not inside Docker) — yfinance fetches data using your machine's IP:
 
 ```bash
-python backfill.py
+pip install -r requirements.txt   # first time only
+python backfill.py                 # last 10 trading days (~10 min)
 ```
 
 > **Why not `docker compose exec`?** Yahoo Finance rate-limits Docker container IPs. Running from your host machine avoids this.
->
-> **Prerequisites for running locally:** Python 3.11+ and `pip install -r requirements.txt` in a virtualenv.
 
-This fetches the last 10 trading days of live prices from yfinance, computes NAV, exposures, and all performance metrics, and caches results in Redis.
-
-> Takes ~60 seconds per day. Use `--days 30` for fuller chart history or `--days 1` for a quick smoke test.
-
-The `.env.example` is pre-configured to point at Docker's postgres on port **5433** (to avoid conflict with any local postgres on 5432).
+The `.env.example` points at Docker's postgres on port **5433** (avoids conflict with any local postgres on 5432).
 
 ### Step 4 — Open the frontend
 
@@ -50,7 +112,7 @@ The `.env.example` is pre-configured to point at Docker's postgres on port **543
 Open  frontend/index.html  in any browser
 ```
 
-No extra server needed. The file connects directly to `http://localhost:8000`.
+No server needed. Connects directly to `http://localhost:8000`.
 
 ---
 
@@ -64,10 +126,8 @@ No extra server needed. The file connects directly to `http://localhost:8000`.
 | **NAV** | Interactive line chart with date range and plan filters; period return summary |
 | **Holdings** | Portfolio positions with weights and market values; historical `?as_of=` date lookup |
 | **Exposures** | Doughnut charts for sector / country / region / cap / asset class allocations |
-| **Performance** | Trailing returns vs both benchmarks, calendar year returns, all 12 risk metrics, portfolio P/E·P/B·yield |
-| **Admin** | Trigger the pipeline manually, view run history with per-stage timings, add/update/close holdings (SCD2) |
-
-The sidebar shows the pipeline status in real time (running / success / failed) and the latest NAV per product.
+| **Performance** | Trailing returns vs both benchmarks, calendar year returns, all 12 risk metrics, portfolio P/E · P/B · yield |
+| **Admin** | Trigger pipeline manually, view run history with per-stage timings, add/update/close holdings (SCD2) |
 
 ---
 
@@ -76,16 +136,16 @@ The sidebar shows the pipeline status in real time (running / success / failed) 
 The pipeline runs automatically at 10 PM ET every weekday (configurable in `.env`).
 
 ```bash
-# Backfill last 10 trading days — run from host, not inside Docker (yfinance + Docker IPs conflict)
+# Backfill last 10 trading days — run from host (not inside Docker)
 python backfill.py
 
 # Backfill last 30 days (fuller chart history)
 python backfill.py --days 30
 
-# Specific past date (from host)
+# Specific past date
 python -m app.pipeline.runner --date 2024-06-01
 
-# Via admin API (triggers pipeline inside Docker, runs in background)
+# Via admin API (triggers inside Docker in background)
 curl -X POST http://localhost:8000/admin/pipeline/trigger \
   -H "X-Admin-Token: changeme"
 ```
@@ -100,7 +160,7 @@ Base URL: `http://localhost:8000` · Interactive docs: `http://localhost:8000/do
 |---|---|---|
 | GET | `/products` | List all products with latest NAV and AUM |
 | GET | `/products/{code}` | Fund detail — managers, plans, fees, benchmarks, AMC CIN |
-| GET | `/products/{code}/factsheet` | Headline factsheet (served from Redis, DB fallback) |
+| GET | `/products/{code}/factsheet` | Headline factsheet (Redis → DB fallback) |
 | GET | `/products/{code}/nav` | NAV history — `?plan_type=direct&from_date=&limit=365` |
 | GET | `/products/{code}/holdings` | Portfolio positions — `?as_of=YYYY-MM-DD` for history |
 | GET | `/products/{code}/exposures` | Allocation by `?dimension=sector\|country\|region\|cap\|asset_class` |
@@ -119,6 +179,8 @@ Base URL: `http://localhost:8000` · Interactive docs: `http://localhost:8000/do
 
 | Document | Contents |
 |---|---|
+| [docs/Domain_Study.pdf](docs/Domain_Study.pdf) | Pre-implementation domain research — data source matrix, field-by-field freshness analysis |
+| [docs/System_Architecture.pdf](docs/System_Architecture.pdf) | Architecture diagram drawn before coding — 3-layer design, data flow |
 | [docs/01_overview.md](docs/01_overview.md) | Architecture diagram, stack rationale, full repo structure |
 | [docs/02_setup.md](docs/02_setup.md) | Docker and manual setup, every environment variable explained |
 | [docs/03_schema.md](docs/03_schema.md) | All 15 database tables with column-by-column explanation and precision rationale |
@@ -128,13 +190,13 @@ Base URL: `http://localhost:8000` · Interactive docs: `http://localhost:8000/do
 
 ---
 
-## Environment variables
+## Environment Variables
 
 Configured in `.env` (copy from `.env.example`):
 
 | Variable | Default | Description |
 |---|---|---|
-| `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5432/prisma_factsheet` | PostgreSQL connection |
+| `DATABASE_URL` | `postgresql://postgres:postgres@localhost:5433/prisma_factsheet` | PostgreSQL connection (port 5433 for Docker) |
 | `REDIS_URL` | `redis://localhost:6379/0` | Redis connection |
 | `PIPELINE_CRON` | `0 22 * * 1-5` | Cron schedule (10 PM ET weekdays) |
 | `PIPELINE_TIMEZONE` | `America/New_York` | Timezone for the cron |
