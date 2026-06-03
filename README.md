@@ -20,10 +20,6 @@ The assignment asked candidates to think through:
 | **Data pipelines / ETL** | Fetch, transform, and store market data daily |
 | **API design** | Clean REST endpoints for frontend consumption |
 | **Data freshness** | Systems that update factsheet data daily without downtime |
-| **Market cap exposure** | Classify holdings into large / mid / small / micro cap |
-| **Country / region exposure** | Group holdings by domicile and MSCI region |
-| **Sector exposure** | Map holdings to GICS sectors |
-| **Holdings datasets** | Admin-managed portfolio with SCD2 history |
 
 ---
 
