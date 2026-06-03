@@ -1,8 +1,9 @@
 """
-Fetch sector, market-cap, and ratio data from yfinance and store with SCD2.
+Stage 3 — fetch sector, market-cap, and valuation ratios via yfinance.
 
-SCD2 rule: if sector or cap_bucket changed, close the old row and open a new one.
-If only ratios changed (daily noise), update the active row in place.
+SCD2 rule:
+  - Sector or cap changed  → close old row, open new row (history preserved)
+  - Only ratios changed    → update existing row in place (daily noise, no new history)
 """
 import uuid
 from datetime import date, timedelta
@@ -12,7 +13,7 @@ from sqlalchemy.orm import Session
 
 from app.models import Classification, Security
 
-# yfinance sector name → our sector code
+# yfinance sector strings → our stable sector codes
 SECTOR_MAP: dict[str, str] = {
     "Technology": "TECH",
     "Financial Services": "FIN",
@@ -29,10 +30,10 @@ SECTOR_MAP: dict[str, str] = {
 
 
 def run(session: Session, target_date: date, run_id: uuid.UUID) -> int:
-    # ETFs/benchmarks don't carry sector data — skip them
+    # ETFs and benchmark indices carry no sector data
     securities = session.query(Security).filter_by(is_fund=False).all()
 
-    active_clf: dict = {
+    active_clf = {
         c.security_id: c
         for c in session.query(Classification).filter(Classification.effective_to.is_(None)).all()
     }
@@ -45,10 +46,9 @@ def run(session: Session, target_date: date, run_id: uuid.UUID) -> int:
             continue
 
         sector_code = SECTOR_MAP.get(info.get("sector", ""))
-        market_cap = info.get("marketCap")
-        cap_bucket = _cap_bucket(market_cap)
+        cap_bucket = _cap_bucket(info.get("marketCap"))
         ratios = {
-            "market_cap_usd": market_cap,
+            "market_cap_usd": info.get("marketCap"),
             "pe_ratio": info.get("trailingPE"),
             "pb_ratio": info.get("priceToBook"),
             "dividend_yield": info.get("dividendYield"),
@@ -57,7 +57,6 @@ def run(session: Session, target_date: date, run_id: uuid.UUID) -> int:
         existing = active_clf.get(sec.id)
 
         if existing and existing.sector_code == sector_code and existing.cap_bucket == cap_bucket:
-            # Structural classification unchanged — only update daily ratios in place
             for k, v in ratios.items():
                 setattr(existing, k, v)
         else:
@@ -79,13 +78,11 @@ def run(session: Session, target_date: date, run_id: uuid.UUID) -> int:
 
 
 def _cap_bucket(market_cap_usd) -> str | None:
+    """≥$10B = large, $2B–$10B = mid, $300M–$2B = small, <$300M = micro."""
     if not market_cap_usd:
         return None
     b = market_cap_usd / 1e9
-    if b >= 10:
-        return "large"
-    if b >= 2:
-        return "mid"
-    if b >= 0.3:
-        return "small"
+    if b >= 10:  return "large"
+    if b >= 2:   return "mid"
+    if b >= 0.3: return "small"
     return "micro"

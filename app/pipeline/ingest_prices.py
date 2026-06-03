@@ -1,4 +1,4 @@
-"""Fetch OHLCV prices for every security in the securities table via yfinance."""
+"""Stage 1 — fetch OHLCV prices for all securities in one batched yfinance call."""
 import math
 import uuid
 from datetime import date, timedelta
@@ -17,19 +17,20 @@ def run(session: Session, target_date: date, run_id: uuid.UUID) -> int:
         return 0
 
     sec_by_ticker = {s.ticker: s for s in securities}
-    tickers = list(sec_by_ticker)
 
+    # One batch call for all tickers — far fewer network round-trips than per-ticker calls
     raw = yf.download(
-        tickers,
+        list(sec_by_ticker),
         start=target_date.isoformat(),
-        end=(target_date + timedelta(days=1)).isoformat(),
-        auto_adjust=False,
+        end=(target_date + timedelta(days=1)).isoformat(),  # end is exclusive
+        auto_adjust=False,  # keep both Close and Adj Close
         progress=False,
         threads=True,
     )
     if raw.empty:
         return 0
 
+    # Multi-ticker downloads return a MultiIndex; single-ticker returns flat columns
     is_multi = isinstance(raw.columns, pd.MultiIndex)
     rows = []
 
@@ -55,6 +56,7 @@ def run(session: Session, target_date: date, run_id: uuid.UUID) -> int:
             continue
 
     if rows:
+        # ON CONFLICT DO NOTHING makes re-running the pipeline for the same date safe
         session.execute(
             pg_insert(Price.__table__)
             .values(rows)

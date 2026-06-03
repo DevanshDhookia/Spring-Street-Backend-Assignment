@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prisma Dev Console</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: #475569; border-radius: 3px; }
+
+  .tab-btn {
+    padding: 10px 16px; font-size: 13px; font-weight: 500;
+    border: none; border-bottom: 2px solid transparent;
+    color: #6b7280; cursor: pointer; background: none;
+    transition: all 0.15s; white-space: nowrap;
+  }
+  .tab-btn:hover { color: #374151; border-bottom-color: #d1d5db; }
+  .tab-btn.active { color: #2563eb; border-bottom-color: #3b82f6; }
+
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 6px 14px; border-radius: 6px; font-size: 13px; font-weight: 500; cursor: pointer; border: none; transition: all 0.15s; }
+  .btn-blue { background: #3b82f6; color: #fff; }
+  .btn-blue:hover { background: #2563eb; }
+  .btn-white { background: #fff; color: #374151; border: 1px solid #d1d5db; }
+  .btn-white:hover { background: #f9fafb; }
+  .btn-red { background: #fff; color: #dc2626; border: 1px solid #fca5a5; }
+  .btn-red:hover { background: #fef2f2; }
+  .btn-sm { padding: 4px 10px; font-size: 12px; border-radius: 4px; }
+
+  .input { border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 10px; font-size: 13px; color: #374151; outline: none; width: 100%; }
+  .input:focus { border-color: #3b82f6; box-shadow: 0 0 0 2px rgba(59,130,246,0.15); }
+  .select { border: 1px solid #d1d5db; border-radius: 6px; padding: 6px 10px; font-size: 13px; color: #374151; outline: none; background: #fff; cursor: pointer; }
+
+  .card { background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; padding: 20px; }
+  .section-title { font-size: 11px; font-weight: 600; letter-spacing: 0.07em; text-transform: uppercase; color: #6b7280; margin-bottom: 14px; }
+
+  .kv-row { display: flex; justify-content: space-between; align-items: baseline; padding: 5px 0; border-bottom: 1px solid #f9fafb; }
+  .kv-row:last-child { border-bottom: none; }
+  .kv-label { font-size: 12px; color: #9ca3af; }
+  .kv-value { font-size: 12px; font-weight: 500; color: #374151; text-align: right; max-width: 220px; }
+
+  .tbl { width: 100%; font-size: 13px; border-collapse: collapse; }
+  .tbl th { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: #9ca3af; padding: 0 8px 8px 0; text-align: left; border-bottom: 1px solid #e5e7eb; white-space: nowrap; }
+  .tbl th.r { text-align: right; }
+  .tbl td { padding: 8px 8px 8px 0; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+  .tbl tr:last-child td { border-bottom: none; }
+  .tbl tr:hover td { background: #fafafa; }
+  .tbl td.r { text-align: right; }
+
+  .pos { color: #16a34a; }
+  .neg { color: #dc2626; }
+  .neu { color: #6b7280; }
+
+  .pill { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; }
+  .chip { display: inline-flex; align-items: center; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 500; }
+
+  .dim-btn { padding: 5px 12px; border-radius: 999px; font-size: 12px; font-weight: 500; cursor: pointer; border: 1px solid #d1d5db; color: #6b7280; background: #fff; transition: all 0.12s; }
+  .dim-btn.active { background: #3b82f6; color: #fff; border-color: #3b82f6; }
+  .dim-btn:hover:not(.active) { border-color: #93c5fd; color: #3b82f6; }
+
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid #e5e7eb; border-top-color: #3b82f6; border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+  .pulse { animation: pulse 1.5s ease-in-out infinite; }
+
+  .product-item { padding: 10px 12px; cursor: pointer; border-left: 3px solid transparent; transition: all 0.12s; }
+  .product-item:hover { background: rgba(255,255,255,0.06); border-left-color: #475569; }
+  .product-item.active { background: rgba(59,130,246,0.15); border-left-color: #3b82f6; }
+
+  .metric-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  @media (max-width: 1100px) { .metric-grid { grid-template-columns: repeat(3, 1fr); } }
+
+  .wbar { height: 5px; background: #3b82f6; border-radius: 3px; display: inline-block; vertical-align: middle; }
+</style>
+</head>
+
+<body style="height:100vh;display:flex;flex-direction:column;overflow:hidden;background:#f8fafc">
+
+<!-- ═══ HEADER ═══ -->
+<header style="background:#0f172a;flex-shrink:0;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #1e293b">
+  <div style="display:flex;align-items:center;gap:12px">
+    <span style="font-size:15px;font-weight:700;color:#fff;letter-spacing:-0.3px">Prisma Dev Console</span>
+    <span id="health-badge" style="font-size:11px;padding:2px 8px;border-radius:999px;background:#1e293b;color:#64748b">connecting…</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span style="font-size:11px;color:#475569">API</span>
+    <input id="inp-base" type="text" value="http://localhost:8000"
+      style="font-size:12px;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:5px;padding:4px 8px;width:200px;outline:none">
+    <span style="font-size:11px;color:#475569;margin-left:6px">Admin Token</span>
+    <input id="inp-token" type="password" placeholder="changeme"
+      style="font-size:12px;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:5px;padding:4px 8px;width:110px;outline:none">
+  </div>
+</header>
+
+<!-- ═══ BODY ═══ -->
+<div style="display:flex;flex:1;overflow:hidden">
+
+  <!-- ═══ SIDEBAR ═══ -->
+  <aside style="width:272px;flex-shrink:0;background:#0f172a;display:flex;flex-direction:column;overflow:hidden;border-right:1px solid #1e293b">
+
+    <!-- Pipeline status -->
+    <div style="padding:12px;border-bottom:1px solid #1e293b">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+        <span style="font-size:10px;font-weight:600;letter-spacing:0.08em;color:#475569;text-transform:uppercase">Pipeline</span>
+        <button onclick="refreshStatus()" style="font-size:12px;color:#475569;background:none;border:none;cursor:pointer;padding:0" title="Refresh">↻</button>
+      </div>
+      <div id="sidebar-status" style="font-size:12px;color:#64748b">Loading…</div>
+    </div>
+
+    <!-- Products header -->
+    <div style="padding:8px 12px 6px;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #1e293b">
+      <span style="font-size:10px;font-weight:600;letter-spacing:0.08em;color:#475569;text-transform:uppercase">Products</span>
+      <button onclick="loadProducts()" style="font-size:12px;color:#475569;background:none;border:none;cursor:pointer;padding:0" title="Refresh">↻</button>
+    </div>
+
+    <!-- Products list -->
+    <div id="products-list" style="flex:1;overflow-y:auto;padding:4px 0">
+      <div style="padding:10px 12px;font-size:12px;color:#475569">Loading…</div>
+    </div>
+
+  </aside>
+
+  <!-- ═══ MAIN ═══ -->
+  <main style="flex:1;overflow:hidden;display:flex;flex-direction:column">
+
+    <!-- Welcome -->
+    <div id="welcome" style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#94a3b8">
+      <div style="font-size:48px;margin-bottom:16px">📊</div>
+      <div style="font-size:16px;font-weight:600;color:#64748b">Select a product to begin</div>
+      <div style="font-size:13px;margin-top:6px">Or use the Admin tab to trigger the pipeline</div>
+    </div>
+
+    <!-- Product view -->
+    <div id="product-view" style="display:none;flex:1;overflow:hidden;flex-direction:column" class="flex flex-col">
+
+      <!-- Product header -->
+      <div style="background:#fff;border-bottom:1px solid #e5e7eb;padding:14px 24px;flex-shrink:0;display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <h1 id="ph-name" style="font-size:18px;font-weight:700;color:#111827;margin:0"></h1>
+          <div id="ph-meta" style="font-size:12px;color:#6b7280;margin-top:3px"></div>
+        </div>
+        <div id="ph-nav" style="text-align:right"></div>
+      </div>
+
+      <!-- Tab bar -->
+      <div style="background:#fff;border-bottom:1px solid #e5e7eb;padding:0 24px;flex-shrink:0;display:flex">
+        <button class="tab-btn active" data-tab="factsheet" onclick="switchTab('factsheet')">Factsheet</button>
+        <button class="tab-btn" data-tab="nav"         onclick="switchTab('nav')">NAV</button>
+        <button class="tab-btn" data-tab="holdings"    onclick="switchTab('holdings')">Holdings</button>
+        <button class="tab-btn" data-tab="exposures"   onclick="switchTab('exposures')">Exposures</button>
+        <button class="tab-btn" data-tab="performance" onclick="switchTab('performance')">Performance</button>
+        <button class="tab-btn" data-tab="admin"       onclick="switchTab('admin')">Admin</button>
+      </div>
+
+      <!-- Tab panels (scrollable area) -->
+      <div style="flex:1;overflow-y:auto;background:#f8fafc">
+        <div id="tab-factsheet"   class="tab-panel" style="padding:24px"></div>
+        <div id="tab-nav"         class="tab-panel" style="padding:24px;display:none"></div>
+        <div id="tab-holdings"    class="tab-panel" style="padding:24px;display:none"></div>
+        <div id="tab-exposures"   class="tab-panel" style="padding:24px;display:none"></div>
+        <div id="tab-performance" class="tab-panel" style="padding:24px;display:none"></div>
+        <div id="tab-admin"       class="tab-panel" style="padding:24px;display:none"></div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════
+//  STATE
+// ═══════════════════════════════════════════════
+let BASE  = 'http://localhost:8000';
+let TOKEN = 'changeme';
+let currentCode = null;
+let currentTab  = 'factsheet';
+const charts = {};
+
+// ═══════════════════════════════════════════════
+//  HTTP CLIENT
+// ═══════════════════════════════════════════════
+async function api(method, path, body = null, admin = false) {
+  const headers = { 'Content-Type': 'application/json' };
+  if (admin) headers['X-Admin-Token'] = TOKEN;
+  const res = await fetch(BASE + path, {
+    method, headers,
+    body: body != null ? JSON.stringify(body) : undefined,
+  });
+  if (res.status === 204) return null;
+  const data = await res.json().catch(() => null);
+  if (!res.ok) throw new Error((data && data.detail) || `HTTP ${res.status}`);
+  return data;
+}
+
+// ═══════════════════════════════════════════════
+//  INIT
+// ═══════════════════════════════════════════════
+document.getElementById('inp-base').addEventListener('change', e => {
+  BASE = e.target.value.replace(/\/$/, '');
+  init();
+});
+document.getElementById('inp-token').addEventListener('change', e => {
+  TOKEN = e.target.value;
+});
+TOKEN = document.getElementById('inp-token').placeholder; // default "changeme"
+
+function init() {
+  checkHealth();
+  refreshStatus();
+  loadProducts();
+}
+
+// ─── Health ───────────────────────────────────
+async function checkHealth() {
+  const el = document.getElementById('health-badge');
+  try {
+    await api('GET', '/health');
+    el.textContent = '● online';
+    el.style.cssText = 'font-size:11px;padding:2px 8px;border-radius:999px;background:#052e16;color:#4ade80';
+  } catch {
+    el.textContent = '● offline';
+    el.style.cssText = 'font-size:11px;padding:2px 8px;border-radius:999px;background:#450a0a;color:#f87171';
+  }
+}
+
+// ─── Pipeline status ──────────────────────────
+async function refreshStatus() {
+  const el = document.getElementById('sidebar-status');
+  try {
+    const d = await api('GET', '/admin/pipeline/status');
+    const col = { success:'#4ade80', failed:'#f87171', running:'#fbbf24', never_run:'#64748b' }[d.status] || '#64748b';
+    el.innerHTML =
+      `<span style="color:${col};font-weight:600">${d.status === 'running' ? '⟳ ' : ''}${d.status}</span>` +
+      (d.last_run_date ? `<br><span style="color:#475569">Last: ${d.last_run_date}</span>` : '') +
+      (d.error ? `<br><span style="color:#f87171;font-size:11px">${d.error.slice(0,60)}</span>` : '');
+  } catch(e) {
+    el.textContent = e.message;
+  }
+}
+
+// ═══════════════════════════════════════════════
+//  PRODUCTS SIDEBAR
+// ═══════════════════════════════════════════════
+async function loadProducts() {
+  const el = document.getElementById('products-list');
+  el.innerHTML = spin();
+  try {
+    const list = await api('GET', '/products');
+    if (!list.length) {
+      el.innerHTML = '<div style="padding:12px;font-size:12px;color:#475569">No products found.<br>Run the bootstrap script first.</div>';
+      return;
+    }
+    el.innerHTML = list.map(p => `
+      <div class="product-item ${p.code === currentCode ? 'active' : ''}" data-code="${p.code}" onclick="selectProduct('${p.code}')">
+        <div style="font-size:13px;font-weight:500;color:#e2e8f0;line-height:1.3">${p.name}</div>
+        <div style="display:flex;justify-content:space-between;margin-top:3px">
+          <span style="font-size:11px;color:#475569;font-family:monospace">${p.code}</span>
+          ${p.latest_nav != null ? `<span style="font-size:11px;color:#94a3b8">${fmt(p.latest_nav)}</span>` : ''}
+        </div>
+        ${p.aum ? `<div style="font-size:11px;color:#475569">AUM ${fmtAUM(p.aum)}</div>` : ''}
+        ${p.latest_nav_date ? `<div style="font-size:10px;color:#334155">${p.latest_nav_date}</div>` : ''}
+      </div>`).join('');
+  } catch(e) {
+    el.innerHTML = `<div style="padding:12px;font-size:12px;color:#f87171">${e.message}</div>`;
+  }
+}
+
+async function selectProduct(code) {
+  currentCode = code;
+  document.querySelectorAll('.product-item').forEach(el =>
+    el.classList.toggle('active', el.dataset.code === code)
+  );
+  document.getElementById('welcome').style.display = 'none';
+  document.getElementById('product-view').style.display = 'flex';
+  switchTab('factsheet');
+  loadProductHeader(code);
+}
+
+async function loadProductHeader(code) {
+  try {
+    const d = await api('GET', `/products/${code}`);
+    document.getElementById('ph-name').textContent = d.name;
+    document.getElementById('ph-meta').textContent =
+      [d.amc, d.scheme_category, d.scheme_type, `Inception ${d.inception_date}`].filter(Boolean).join(' · ');
+  } catch {}
+  try {
+    const list = await api('GET', '/products');
+    const p = list.find(x => x.code === code);
+    if (p?.latest_nav != null) {
+      document.getElementById('ph-nav').innerHTML = `
+        <div style="font-size:22px;font-weight:700;color:#111827">${fmt(p.latest_nav)}</div>
+        <div style="font-size:11px;color:#6b7280">NAV${p.latest_nav_date ? ' · ' + p.latest_nav_date : ''}</div>
+        ${p.aum ? `<div style="font-size:11px;color:#6b7280">${fmtAUM(p.aum)}</div>` : ''}`;
+    }
+  } catch {}
+}
+
+// ═══════════════════════════════════════════════
+//  TABS
+// ═══════════════════════════════════════════════
+function switchTab(tab) {
+  currentTab = tab;
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    b.classList.toggle('active', b.dataset.tab === tab);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => {
+    p.style.display = p.id === `tab-${tab}` ? 'block' : 'none';
+  });
+  const loaders = { factsheet, nav, holdings, exposures, performance, admin };
+  loaders[tab]?.();
+}
+
+// ═══════════════════════════════════════════════
+//  FACTSHEET TAB
+// ═══════════════════════════════════════════════
+async function factsheet() {
+  const el = document.getElementById('tab-factsheet');
+  el.innerHTML = spinBlock();
+  try {
+    const [detail, fs] = await Promise.all([
+      api('GET', `/products/${currentCode}`),
+      api('GET', `/products/${currentCode}/factsheet`),
+    ]);
+
+    el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+
+      <!-- Left column -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+
+        <!-- Fund details -->
+        <div class="card">
+          <div class="section-title">Fund Details</div>
+          ${kv('AMC', detail.amc)}
+          ${kv('Scheme Type', detail.scheme_type)}
+          ${kv('Category', detail.scheme_category)}
+          ${kv('Sub-category', detail.scheme_sub_category)}
+          ${kv('Inception', detail.inception_date)}
+          ${kv('Base Currency', detail.base_currency)}
+          ${kv('Reporting Currency', detail.reporting_currency)}
+          ${kv('Fund of Funds', detail.is_fund_of_funds ? 'Yes' : 'No')}
+          ${kv('Risk Level', detail.risk_level ? riskPill(detail.risk_level) : '—')}
+          ${kv('Benchmark Risk', detail.benchmark_risk_level ? riskPill(detail.benchmark_risk_level) : '—')}
+          ${kv('Primary Benchmark', detail.primary_benchmark || '—')}
+          ${kv('Additional Benchmark', detail.additional_benchmark || '—')}
+          ${kv('Trustee', detail.trustee_name)}
+          ${kv('Custodian', detail.custodian_name)}
+          ${kv('RTA', detail.rta_name)}
+          ${detail.objective ? `<div style="margin-top:10px;padding-top:10px;border-top:1px solid #f3f4f6"><div class="kv-label" style="margin-bottom:4px">Investment Objective</div><div style="font-size:12px;color:#4b5563;line-height:1.6">${detail.objective}</div></div>` : ''}
+        </div>
+
+        <!-- Managers -->
+        ${detail.managers.length ? `
+        <div class="card">
+          <div class="section-title">Fund Managers</div>
+          ${detail.managers.map(m => `
+            <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+              <div style="width:34px;height:34px;border-radius:50%;background:#dbeafe;color:#1d4ed8;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">${m.name[0]}</div>
+              <div>
+                <div style="font-size:13px;font-weight:600;color:#111827">${m.name}</div>
+                <div style="font-size:11px;color:#6b7280">${m.experience_years ? m.experience_years + ' yrs · ' : ''}Since ${m.managing_since}</div>
+              </div>
+            </div>`).join('')}
+        </div>` : ''}
+
+      </div>
+
+      <!-- Right column -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+
+        <!-- NAV -->
+        ${fs.navs && fs.navs.length ? `
+        <div class="card">
+          <div class="section-title">NAV <span style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af">as of ${fs.as_of || '—'}</span></div>
+          <table class="tbl">
+            <thead><tr>
+              <th>Plan</th>
+              <th class="r">NAV</th>
+              <th class="r">NAV (INR)</th>
+              <th class="r">AUM</th>
+            </tr></thead>
+            <tbody>
+              ${fs.navs.map(n => `<tr>
+                <td style="font-weight:500;color:#111827">${n.plan_type}-${n.option_type}</td>
+                <td class="r" style="font-weight:600">${fmt(n.nav)}</td>
+                <td class="r" style="color:#6b7280">${n.nav_inr ? fmt(n.nav_inr) : '—'}</td>
+                <td class="r" style="color:#6b7280">${n.aum ? fmtAUM(n.aum) : '—'}</td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>` : ''}
+
+        <!-- Plans & Fees -->
+        <div class="card">
+          <div class="section-title">Plans & Fees</div>
+          ${detail.plans.map(p => `
+            <div style="border:1px solid #e5e7eb;border-radius:7px;padding:12px;margin-bottom:8px">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                <span style="font-weight:600;color:#111827;font-size:13px">${p.plan_type}-${p.option_type}</span>
+                ${p.isin ? `<span style="font-size:11px;color:#6b7280;font-family:monospace">${p.isin}</span>` : ''}
+              </div>
+              <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px;font-size:12px">
+                <div style="color:#6b7280">Min Initial<br><strong style="color:#111827">${p.min_initial ? '₹'+p.min_initial.toLocaleString() : '—'}</strong></div>
+                <div style="color:#6b7280">Min SIP<br><strong style="color:#111827">${p.min_sip ? '₹'+p.min_sip.toLocaleString() : '—'}</strong></div>
+                <div style="color:#6b7280">TER<br><strong style="${p.fees?.ter ? 'color:#d97706' : 'color:#9ca3af'}">${p.fees?.ter != null ? pct(p.fees.ter) : '—'}</strong></div>
+              </div>
+              ${p.fees?.exit_load_pct ? `<div style="margin-top:6px;font-size:12px;color:#6b7280">Exit Load: <strong style="color:#374151">${pct(p.fees.exit_load_pct)}${p.fees.exit_load_days ? ' for '+p.fees.exit_load_days+'d' : ''}</strong></div>` : ''}
+            </div>`).join('')}
+        </div>
+
+        <!-- Performance headline -->
+        ${fs.performance ? `
+        <div class="card">
+          <div class="section-title">Performance Headline <span style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af">Direct-Growth · 1Y</span></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px">
+            ${Object.entries(fs.performance.trailing_returns || {}).map(([k,v]) => `
+              <div style="text-align:center;min-width:50px">
+                <div style="font-size:11px;color:#9ca3af">${k}</div>
+                <div style="font-size:16px;font-weight:700;${v>=0?'color:#16a34a':'color:#dc2626'}">${pct(v)}</div>
+              </div>`).join('')}
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;border-top:1px solid #f3f4f6;padding-top:10px;font-size:12px">
+            ${[
+              ['Sharpe',    fs.performance.sharpe,       false],
+              ['Max DD',    fs.performance.max_drawdown, true ],
+              ['Std Dev',   fs.performance.std_dev,      true ],
+            ].map(([l,v,isPct]) => `<div style="color:#6b7280">${l}<br><strong style="${retColor(v,l==='Max DD')}">${v!=null?(isPct?pct(v):v.toFixed(2)):'—'}</strong></div>`).join('')}
+          </div>
+        </div>` : ''}
+
+      </div>
+    </div>`;
+  } catch(e) { el.innerHTML = errBox(e); }
+}
+
+// ═══════════════════════════════════════════════
+//  NAV TAB
+// ═══════════════════════════════════════════════
+async function nav() {
+  const el = document.getElementById('tab-nav');
+  el.innerHTML = `
+    <div class="card">
+      <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:20px">
+        ${field('Plan', `<select id="nv-plan" class="select">
+          <option value="direct|growth">Direct – Growth</option>
+          <option value="direct|idcw">Direct – IDCW</option>
+          <option value="regular|growth">Regular – Growth</option>
+          <option value="regular|idcw">Regular – IDCW</option>
+        </select>`)}
+        ${field('From', `<input type="date" id="nv-from" class="input" style="width:140px">`)}
+        ${field('To',   `<input type="date" id="nv-to"   class="input" style="width:140px">`)}
+        ${field('Limit', `<select id="nv-limit" class="select">
+          <option value="90">90 days</option>
+          <option value="180">180 days</option>
+          <option value="365" selected>1 year</option>
+          <option value="756">3 years</option>
+          <option value="1825">5 years</option>
+        </select>`)}
+        <button class="btn btn-blue" onclick="fetchNav()">Load</button>
+      </div>
+      <div id="nv-stats" style="display:none;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px"></div>
+      <div style="position:relative;height:320px"><canvas id="nv-canvas"></canvas></div>
+    </div>`;
+  fetchNav();
+}
+
+async function fetchNav() {
+  if (!currentCode) return;
+  const [pt, ot] = (document.getElementById('nv-plan')?.value || 'direct|growth').split('|');
+  const p = new URLSearchParams({ plan_type: pt, option_type: ot, limit: document.getElementById('nv-limit')?.value || 365 });
+  const from = document.getElementById('nv-from')?.value;
+  const to   = document.getElementById('nv-to')?.value;
+  if (from) p.set('from_date', from);
+  if (to)   p.set('to_date', to);
+  try {
+    const d = await api('GET', `/products/${currentCode}/nav?${p}`);
+    const statsEl = document.getElementById('nv-stats');
+    if (d.series.length) {
+      const last = d.series[d.series.length-1];
+      const first = d.series[0];
+      const ret = (last.nav - first.nav) / first.nav;
+      statsEl.style.cssText = 'display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px';
+      statsEl.innerHTML = [
+        ['Current NAV', fmt(last.nav), false],
+        ['Period Return', pct(ret), ret >= 0],
+        ['AUM', last.aum ? fmtAUM(last.aum) : '—', null],
+        ['Data Points', d.series.length, null],
+      ].map(([l,v,pos]) => `
+        <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:7px;padding:10px">
+          <div style="font-size:11px;color:#9ca3af">${l}</div>
+          <div style="font-size:18px;font-weight:700;margin-top:2px;${pos===true?'color:#16a34a':pos===false?'color:#dc2626':'color:#111827'}">${v}</div>
+        </div>`).join('');
+    } else { statsEl.style.display = 'none'; }
+
+    if (charts.nav) { charts.nav.destroy(); delete charts.nav; }
+    charts.nav = new Chart(document.getElementById('nv-canvas'), {
+      type: 'line',
+      data: {
+        labels: d.series.map(x => x.date),
+        datasets: [{
+          label: `NAV (${pt}-${ot})`,
+          data: d.series.map(x => x.nav),
+          borderColor: '#3b82f6', backgroundColor: 'rgba(59,130,246,0.07)',
+          borderWidth: 2, pointRadius: d.series.length > 120 ? 0 : 2,
+          fill: true, tension: 0.3,
+        }],
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+        scales: {
+          x: { grid: { display: false }, ticks: { maxTicksLimit: 8, font: { size: 11 } } },
+          y: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 } } },
+        },
+      },
+    });
+  } catch(e) { document.getElementById('nv-canvas').parentElement.innerHTML = errBox(e); }
+}
+
+// ═══════════════════════════════════════════════
+//  HOLDINGS TAB
+// ═══════════════════════════════════════════════
+async function holdings() {
+  const el = document.getElementById('tab-holdings');
+  el.innerHTML = `
+    <div class="card">
+      <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:20px">
+        ${field('Historical date', `<input type="date" id="hld-asof" class="input" style="width:160px" placeholder="Leave blank for current">`)}
+        <button class="btn btn-blue" onclick="fetchHoldings()">Load</button>
+      </div>
+      <div id="hld-table">${spinBlock()}</div>
+    </div>`;
+  fetchHoldings();
+}
+
+async function fetchHoldings() {
+  const asof = document.getElementById('hld-asof')?.value;
+  const el = document.getElementById('hld-table');
+  el.innerHTML = spinBlock();
+  try {
+    const data = await api('GET', `/products/${currentCode}/holdings${asof ? '?as_of='+asof : ''}`);
+    if (!data.length) { el.innerHTML = '<div style="color:#9ca3af;padding:12px 0;font-size:13px">No holdings found</div>'; return; }
+    const maxW = Math.max(...data.map(h => h.weight || 0), 0.01);
+    el.innerHTML = `
+      <table class="tbl">
+        <thead><tr>
+          <th>Security</th>
+          <th>Ticker</th>
+          <th>Asset Class</th>
+          <th class="r">Qty</th>
+          <th class="r">Market Value</th>
+          <th>Weight</th>
+        </tr></thead>
+        <tbody>
+          ${data.map(h => `<tr>
+            <td style="font-weight:500;color:#111827">${h.name}</td>
+            <td style="font-family:monospace;font-size:12px;color:#6b7280">${h.ticker}</td>
+            <td>${chipBlue(h.asset_class)}</td>
+            <td class="r" style="color:#374151">${h.quantity.toLocaleString(undefined,{maximumFractionDigits:2})}</td>
+            <td class="r" style="color:#374151">${h.market_value ? '$'+h.market_value.toLocaleString(undefined,{maximumFractionDigits:0}) : '—'}</td>
+            <td>
+              <div style="display:flex;align-items:center;gap:6px">
+                <div style="width:${Math.round((h.weight||0)/maxW*80)}px;height:5px;background:#3b82f6;border-radius:3px;min-width:2px"></div>
+                <span style="font-size:12px;font-weight:500;color:#374151;white-space:nowrap">${h.weight!=null?pct(h.weight):'—'}</span>
+              </div>
+            </td>
+          </tr>`).join('')}
+        </tbody>
+      </table>
+      <div style="margin-top:8px;font-size:11px;color:#9ca3af">${data.length} holdings${asof?' as of '+asof:' (current)'}</div>`;
+  } catch(e) { el.innerHTML = errBox(e); }
+}
+
+// ═══════════════════════════════════════════════
+//  EXPOSURES TAB
+// ═══════════════════════════════════════════════
+let activeDim = 'sector';
+const DIMS = ['sector','country','region','cap','asset_class'];
+const COLORS = ['#3b82f6','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#f97316','#84cc16','#ec4899','#6366f1','#14b8a6','#f43f5e','#a78bfa'];
+
+async function exposures() {
+  const el = document.getElementById('tab-exposures');
+  el.innerHTML = `
+    <div class="card">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:20px">
+        ${DIMS.map(d => `<button class="dim-btn ${d===activeDim?'active':''}" onclick="setDim('${d}')">${d}</button>`).join('')}
+        <div style="flex:1"></div>
+        <button class="btn btn-white btn-sm" onclick="fetchAllExposures()">All dimensions</button>
+      </div>
+      <div id="exp-body">${spinBlock()}</div>
+    </div>`;
+  fetchExposures(activeDim);
+}
+
+async function setDim(dim) {
+  activeDim = dim;
+  document.querySelectorAll('.dim-btn').forEach(b => {
+    b.classList.toggle('active', b.textContent === dim);
+  });
+  if (charts.exp) { charts.exp.destroy(); delete charts.exp; }
+  fetchExposures(dim);
+}
+
+async function fetchExposures(dim) {
+  const el = document.getElementById('exp-body');
+  el.innerHTML = spinBlock();
+  try {
+    const data = await api('GET', `/products/${currentCode}/exposures?dimension=${dim}`);
+    // With ?dimension=X, API returns a list [{bucket, weight}]
+    const rows = Array.isArray(data) ? [...data].sort((a,b) => b.weight-a.weight) : [];
+    if (!rows.length) { el.innerHTML = '<div style="color:#9ca3af;font-size:13px">No exposure data</div>'; return; }
+
+    el.innerHTML = `
+      <div style="display:flex;gap:32px;align-items:flex-start">
+        <div style="flex-shrink:0;width:260px;height:260px;position:relative">
+          <canvas id="exp-canvas" width="260" height="260"></canvas>
+        </div>
+        <div style="flex:1">
+          <table class="tbl">
+            <thead><tr><th>${dim}</th><th class="r">Weight</th><th></th></tr></thead>
+            <tbody>
+              ${rows.map((r,i) => `<tr>
+                <td>
+                  <span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:${COLORS[i%COLORS.length]};margin-right:7px;vertical-align:-1px"></span>
+                  ${r.bucket}
+                </td>
+                <td class="r" style="font-weight:600">${pct(r.weight)}</td>
+                <td style="width:100px">
+                  <div style="height:5px;background:${COLORS[i%COLORS.length]};border-radius:3px;width:${Math.round(r.weight*100*0.8)}px;max-width:90px"></div>
+                </td>
+              </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+      </div>`;
+
+    if (charts.exp) charts.exp.destroy();
+    charts.exp = new Chart(document.getElementById('exp-canvas'), {
+      type: 'doughnut',
+      data: {
+        labels: rows.map(r => r.bucket),
+        datasets: [{ data: rows.map(r => +(r.weight*100).toFixed(2)), backgroundColor: COLORS.slice(0, rows.length), borderWidth: 1, borderColor: '#fff' }],
+      },
+      options: {
+        responsive: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => ` ${c.label}: ${c.parsed.toFixed(1)}%` } },
+        },
+        cutout: '55%',
+      },
+    });
+  } catch(e) { el.innerHTML = errBox(e); }
+}
+
+async function fetchAllExposures() {
+  const el = document.getElementById('exp-body');
+  el.innerHTML = spinBlock();
+  try {
+    const data = await api('GET', `/products/${currentCode}/exposures`);
+    el.innerHTML = Object.entries(data).map(([dim, rows]) => {
+      const sorted = [...(rows || [])].sort((a,b) => b.weight - a.weight);
+      return `
+        <div style="margin-bottom:20px">
+          <div style="font-size:12px;font-weight:600;color:#6b7280;text-transform:uppercase;letter-spacing:0.05em;margin-bottom:8px">${dim}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            ${sorted.map((r,i) => `
+              <div style="display:inline-flex;align-items:center;gap:5px;background:#f8fafc;border:1px solid #e5e7eb;border-radius:5px;padding:4px 8px;font-size:12px">
+                <span style="width:8px;height:8px;border-radius:50%;background:${COLORS[i%COLORS.length]};display:inline-block"></span>
+                <span style="color:#374151">${r.bucket}</span>
+                <span style="font-weight:700;color:#111827">${pct(r.weight)}</span>
+              </div>`).join('')}
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML = errBox(e); }
+}
+
+// ═══════════════════════════════════════════════
+//  PERFORMANCE TAB
+// ═══════════════════════════════════════════════
+let perfLB = '1Y';
+
+async function performance() {
+  const el = document.getElementById('tab-performance');
+  el.innerHTML = `
+    <div style="display:flex;flex-direction:column;gap:16px">
+      <div class="card">
+        <div style="display:flex;flex-wrap:wrap;gap:12px;align-items:flex-end;margin-bottom:20px">
+          ${field('Lookback', `
+            <div style="display:flex;border:1px solid #d1d5db;border-radius:6px;overflow:hidden">
+              ${['1Y','3Y','5Y'].map(l => `<button class="perf-lb" data-lb="${l}" onclick="setPerfLB('${l}')"
+                style="padding:6px 14px;font-size:13px;font-weight:500;cursor:pointer;border:none;border-right:1px solid #d1d5db;background:${l==='1Y'?'#3b82f6':'#fff'};color:${l==='1Y'?'#fff':'#374151'};transition:all 0.12s">${l}</button>`).join('')}
+            </div>`)}
+          ${field('Plan', `<select id="perf-plan" class="select" onchange="fetchPerf()">
+            <option value="direct|growth">Direct – Growth</option>
+            <option value="direct|idcw">Direct – IDCW</option>
+            <option value="regular|growth">Regular – Growth</option>
+            <option value="regular|idcw">Regular – IDCW</option>
+          </select>`)}
+        </div>
+        <div id="perf-body">${spinBlock()}</div>
+      </div>
+    </div>`;
+  fetchPerf();
+}
+
+function setPerfLB(lb) {
+  perfLB = lb;
+  document.querySelectorAll('.perf-lb').forEach(b => {
+    const on = b.dataset.lb === lb;
+    b.style.background = on ? '#3b82f6' : '#fff';
+    b.style.color = on ? '#fff' : '#374151';
+  });
+  fetchPerf();
+}
+
+async function fetchPerf() {
+  const el = document.getElementById('perf-body');
+  if (!el) return;
+  el.innerHTML = spinBlock();
+  const [pt, ot] = (document.getElementById('perf-plan')?.value || 'direct|growth').split('|');
+  try {
+    const d = await api('GET', `/products/${currentCode}/performance?lookback=${perfLB}&plan_type=${pt}&option_type=${ot}`);
+    const PERIODS = ['1M','3M','6M','1Y','3Y','5Y','SI'];
+    const hasBench  = d.primary_benchmark_returns && Object.keys(d.primary_benchmark_returns).length > 0;
+    const hasAddBench = d.additional_benchmark_returns && Object.keys(d.additional_benchmark_returns).length > 0;
+    const periods = PERIODS.filter(p => d.trailing_returns[p] != null || (hasBench && d.primary_benchmark_returns[p] != null));
+
+    el.innerHTML = `
+      <!-- Trailing Returns -->
+      <div style="margin-bottom:24px">
+        <div class="section-title">Trailing Returns</div>
+        <table class="tbl">
+          <thead><tr>
+            <th>Period</th>
+            <th class="r">Fund</th>
+            ${hasBench    ? '<th class="r">Primary Benchmark</th>' : ''}
+            ${hasAddBench ? '<th class="r">Additional Benchmark</th>' : ''}
+            ${hasBench    ? '<th class="r">Outperformance</th>' : ''}
+          </tr></thead>
+          <tbody>
+            ${periods.map(p => {
+              const f = d.trailing_returns[p];
+              const b = hasBench ? (d.primary_benchmark_returns[p] ?? null) : null;
+              const ab = hasAddBench ? (d.additional_benchmark_returns[p] ?? null) : null;
+              const out = f != null && b != null ? f - b : null;
+              return `<tr>
+                <td style="font-weight:500;color:#6b7280">${p}</td>
+                <td class="r" style="font-weight:700;${retColor(f)}">${f!=null?pct(f):'—'}</td>
+                ${hasBench    ? `<td class="r" style="color:#6b7280">${b!=null?pct(b):'—'}</td>` : ''}
+                ${hasAddBench ? `<td class="r" style="color:#6b7280">${ab!=null?pct(ab):'—'}</td>` : ''}
+                ${hasBench    ? `<td class="r" style="font-size:12px;${retColor(out)}">${out!=null?pct(out):'—'}</td>` : ''}
+              </tr>`;
+            }).join('')}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Calendar Returns -->
+      ${d.calendar_year_returns && Object.keys(d.calendar_year_returns).length ? `
+      <div style="margin-bottom:24px">
+        <div class="section-title">Calendar Year Returns</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          ${Object.entries(d.calendar_year_returns).sort(([a],[b])=>+b-+a).map(([yr,r]) => `
+            <div style="text-align:center;background:#f8fafc;border:1px solid #e5e7eb;border-radius:7px;padding:10px 14px">
+              <div style="font-size:11px;color:#9ca3af">${yr}</div>
+              <div style="font-size:16px;font-weight:700;${retColor(r)}">${pct(r)}</div>
+            </div>`).join('')}
+        </div>
+      </div>` : ''}
+
+      <!-- Risk Metrics -->
+      <div style="margin-bottom:24px">
+        <div class="section-title">Risk Metrics <span style="font-size:11px;font-weight:400;text-transform:none;letter-spacing:0;color:#9ca3af">${perfLB} lookback · annualised</span></div>
+        <div class="metric-grid">
+          ${[
+            ['Std Dev',         d.risk_metrics.std_dev,           true,  'Annualised'],
+            ['Sharpe Ratio',    d.risk_metrics.sharpe,            false, null],
+            ['Sortino Ratio',   d.risk_metrics.sortino,           false, null],
+            ['Treynor Ratio',   d.risk_metrics.treynor,           false, null],
+            ['Beta',            d.risk_metrics.beta,              false, 'vs benchmark'],
+            ['Alpha',           d.risk_metrics.alpha,             true,  'Annualised'],
+            ['R²',              d.risk_metrics.r_squared,         false, null],
+            ['Tracking Error',  d.risk_metrics.tracking_error,   true,  'Annualised'],
+            ['Info Ratio',      d.risk_metrics.information_ratio, false, null],
+            ['Max Drawdown',    d.risk_metrics.max_drawdown,      true,  null],
+            ['Upside Capture',  d.risk_metrics.upside_capture,   true,  null],
+            ['Downside Capture',d.risk_metrics.downside_capture, true,  null],
+          ].map(([label, v, isPct, sub]) => {
+            const isNegMetric = label==='Max Drawdown'||label==='Std Dev'||label==='Tracking Error'||label==='Downside Capture';
+            const color = v==null ? '#9ca3af' : isNegMetric ? '#374151' : (v>0 ? '#16a34a' : v<0 ? '#dc2626' : '#374151');
+            return `
+            <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:7px;padding:12px">
+              <div style="font-size:11px;color:#9ca3af">${label}</div>
+              <div style="font-size:20px;font-weight:700;color:${color};margin:4px 0 2px">${v!=null?(isPct?pct(v):v.toFixed(3)):'—'}</div>
+              ${sub ? `<div style="font-size:10px;color:#9ca3af">${sub}</div>` : ''}
+            </div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <!-- Portfolio Characteristics -->
+      <div>
+        <div class="section-title">Portfolio Characteristics</div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap">
+          ${[
+            ['P/E Ratio',    d.portfolio.pe,              false],
+            ['P/B Ratio',    d.portfolio.pb,              false],
+            ['Div Yield',    d.portfolio.dividend_yield,  true ],
+            ['# Holdings',   d.portfolio.holdings_count,  false],
+            ['Growth of ₹10k', d.growth_of_10k ? '₹'+d.growth_of_10k.value.toLocaleString(undefined,{maximumFractionDigits:0}) : null, false],
+          ].map(([l,v,isPct]) => `
+            <div style="background:#f8fafc;border:1px solid #e5e7eb;border-radius:7px;padding:10px 14px;min-width:100px">
+              <div style="font-size:11px;color:#9ca3af">${l}</div>
+              <div style="font-size:17px;font-weight:700;color:#111827;margin-top:3px">${v!=null?(isPct?pct(v):v):'—'}</div>
+            </div>`).join('')}
+        </div>
+      </div>`;
+  } catch(e) { el.innerHTML = errBox(e); }
+}
+
+// ═══════════════════════════════════════════════
+//  ADMIN TAB
+// ═══════════════════════════════════════════════
+async function admin() {
+  const el = document.getElementById('tab-admin');
+  el.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start">
+
+      <!-- Pipeline -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+        <div class="card">
+          <div class="section-title">Pipeline Control</div>
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px">
+            <button class="btn btn-blue" onclick="triggerPipeline()">▶ Trigger Pipeline</button>
+            <button class="btn btn-white" onclick="admin()">↻ Refresh</button>
+            <span id="trig-msg" style="font-size:12px;color:#6b7280"></span>
+          </div>
+          <div id="runs-table">${spinBlock()}</div>
+        </div>
+      </div>
+
+      <!-- Holdings management -->
+      <div style="display:flex;flex-direction:column;gap:16px">
+
+        <!-- Add holding -->
+        <div class="card">
+          <div class="section-title">Add Holding</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+            ${adminField('Product Code', `<input id="ah-product" class="input" value="${currentCode||''}" placeholder="product-code">`)}
+            ${adminField('Ticker', `<input id="ah-ticker" class="input" placeholder="e.g. AAPL">`)}
+            ${adminField('Quantity', `<input id="ah-qty" type="number" class="input" placeholder="1000">`)}
+            ${adminField('Effective From', `<input id="ah-from" type="date" class="input">`)}
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn btn-blue" onclick="doAddHolding()">Add</button>
+            <span id="ah-msg" style="font-size:12px;color:#6b7280"></span>
+          </div>
+        </div>
+
+        <!-- Update holding -->
+        <div class="card">
+          <div class="section-title">Update Holding (SCD2)</div>
+          <div style="font-size:12px;color:#9ca3af;margin-bottom:10px">Copy the UUID from the Add response or the database.</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">
+            ${adminField('Holding UUID', `<input id="uh-id" class="input" placeholder="xxxxxxxx-xxxx-…">`)}
+            ${adminField('New Quantity', `<input id="uh-qty" type="number" class="input" placeholder="2000">`)}
+          </div>
+          <div style="display:flex;align-items:center;gap:10px">
+            <button class="btn btn-blue" onclick="doUpdateHolding()">Update (SCD2)</button>
+            <span id="uh-msg" style="font-size:12px;color:#6b7280"></span>
+          </div>
+        </div>
+
+        <!-- Close holding -->
+        <div class="card">
+          <div class="section-title">Close Holding</div>
+          <div style="font-size:12px;color:#9ca3af;margin-bottom:10px">Sets effective_to = today, preserving SCD2 history.</div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <input id="ch-id" class="input" placeholder="Holding UUID" style="flex:1">
+            <button class="btn btn-red" onclick="doCloseHolding()">Close</button>
+            <span id="ch-msg" style="font-size:12px;color:#6b7280"></span>
+          </div>
+        </div>
+
+      </div>
+    </div>`;
+  loadRuns();
+}
+
+async function triggerPipeline() {
+  const msg = document.getElementById('trig-msg');
+  msg.textContent = 'Triggering…'; msg.style.color = '#6b7280';
+  try {
+    await api('POST', '/admin/pipeline/trigger', {}, true);
+    msg.textContent = '✓ Pipeline triggered'; msg.style.color = '#16a34a';
+    refreshStatus();
+    setTimeout(loadRuns, 2500);
+  } catch(e) {
+    msg.textContent = '✗ ' + e.message; msg.style.color = '#dc2626';
+  }
+}
+
+async function loadRuns() {
+  const el = document.getElementById('runs-table');
+  if (!el) return;
+  try {
+    const runs = await api('GET', '/admin/pipeline/runs', null, true);
+    if (!runs.length) { el.innerHTML = '<div style="font-size:13px;color:#9ca3af">No runs yet</div>'; return; }
+    el.innerHTML = `
+      <table class="tbl">
+        <thead><tr>
+          <th>Date</th><th>Status</th><th>By</th><th class="r">Rows</th><th class="r">Time</th>
+        </tr></thead>
+        <tbody>
+          ${runs.map(r => {
+            const dur = r.started_at && r.finished_at
+              ? Math.round((new Date(r.finished_at)-new Date(r.started_at))/1000)+'s' : '—';
+            return `<tr title="${r.timings ? JSON.stringify(r.timings) : ''}">
+              <td style="font-family:monospace;font-size:11px">${r.target_date||'—'}</td>
+              <td>${statusPill(r.status)}</td>
+              <td style="font-size:11px;color:#6b7280">${r.triggered_by}</td>
+              <td class="r" style="color:#374151">${r.rows_processed}</td>
+              <td class="r" style="font-size:11px;color:#6b7280">${dur}</td>
+            </tr>
+            ${r.error ? `<tr><td colspan="5" style="font-size:11px;color:#dc2626;padding-top:0">↳ ${r.error}</td></tr>` : ''}`;
+          }).join('')}
+        </tbody>
+      </table>
+      <div style="font-size:10px;color:#9ca3af;margin-top:4px">Hover rows to see stage timings</div>`;
+  } catch(e) { el.innerHTML = errBox(e); }
+}
+
+async function doAddHolding() {
+  const msg = document.getElementById('ah-msg');
+  const body = {
+    product_code: document.getElementById('ah-product').value.trim(),
+    ticker:       document.getElementById('ah-ticker').value.trim().toUpperCase(),
+    quantity:     parseFloat(document.getElementById('ah-qty').value),
+    effective_from: document.getElementById('ah-from').value || undefined,
+  };
+  if (!body.ticker || isNaN(body.quantity)) { msg.textContent = 'Fill ticker + quantity'; msg.style.color='#dc2626'; return; }
+  msg.textContent = 'Adding…'; msg.style.color='#6b7280';
+  try {
+    const r = await api('POST', '/admin/holdings', body, true);
+    msg.textContent = `✓ id: ${r.id}`; msg.style.color='#16a34a';
+    loadProducts(); // refresh sidebar nav
+  } catch(e) { msg.textContent = '✗ ' + e.message; msg.style.color='#dc2626'; }
+}
+
+async function doUpdateHolding() {
+  const msg = document.getElementById('uh-msg');
+  const id  = document.getElementById('uh-id').value.trim();
+  const qty = parseFloat(document.getElementById('uh-qty').value);
+  if (!id || isNaN(qty)) { msg.textContent = 'Fill UUID + quantity'; msg.style.color='#dc2626'; return; }
+  msg.textContent = 'Updating…'; msg.style.color='#6b7280';
+  try {
+    const r = await api('PUT', `/admin/holdings/${id}`, { quantity: qty }, true);
+    msg.textContent = `✓ new id: ${r.id}`; msg.style.color='#16a34a';
+    document.getElementById('uh-id').value = r.id; // prefill with new row id
+  } catch(e) { msg.textContent = '✗ ' + e.message; msg.style.color='#dc2626'; }
+}
+
+async function doCloseHolding() {
+  const msg = document.getElementById('ch-msg');
+  const id  = document.getElementById('ch-id').value.trim();
+  if (!id) { msg.textContent = 'Enter UUID'; msg.style.color='#dc2626'; return; }
+  if (!confirm(`Close holding ${id}?`)) return;
+  msg.textContent = 'Closing…'; msg.style.color='#6b7280';
+  try {
+    await api('DELETE', `/admin/holdings/${id}`, null, true);
+    msg.textContent = '✓ Closed'; msg.style.color='#16a34a';
+    document.getElementById('ch-id').value = '';
+  } catch(e) { msg.textContent = '✗ ' + e.message; msg.style.color='#dc2626'; }
+}
+
+// ═══════════════════════════════════════════════
+//  HELPERS
+// ═══════════════════════════════════════════════
+function spin() { return '<span class="spinner"></span>'; }
+function spinBlock() { return `<div style="display:flex;align-items:center;gap:8px;padding:16px 0;color:#9ca3af;font-size:13px">${spin()} Loading…</div>`; }
+function errBox(e) { return `<div style="color:#dc2626;font-size:13px;padding:12px 0;display:flex;align-items:center;gap:6px"><span style="font-size:18px">⚠</span> ${e.message}</div>`; }
+
+function fmt(n)    { return n==null ? '—' : n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:4}); }
+function pct(n,dp=2) { return n==null ? '—' : (n*100).toFixed(dp)+'%'; }
+function fmtAUM(n) {
+  if (n==null) return '—';
+  if (n>=1e7) return '₹'+(n/1e7).toFixed(2)+' Cr';
+  if (n>=1e5) return '₹'+(n/1e5).toFixed(1)+' L';
+  return '₹'+n.toLocaleString(undefined,{maximumFractionDigits:0});
+}
+
+function retColor(v, invert=false) {
+  if (v==null) return 'color:#9ca3af';
+  if (invert) return 'color:#374151';
+  return v>0 ? 'color:#16a34a' : v<0 ? 'color:#dc2626' : 'color:#374151';
+}
+
+function kv(label, value) {
+  return `<div class="kv-row"><span class="kv-label">${label}</span><span class="kv-value">${value??'—'}</span></div>`;
+}
+
+function field(label, control) {
+  return `<div><label style="font-size:11px;color:#6b7280;display:block;margin-bottom:4px">${label}</label>${control}</div>`;
+}
+
+function adminField(label, control) {
+  return `<div><label style="font-size:11px;color:#6b7280;display:block;margin-bottom:3px">${label}</label>${control}</div>`;
+}
+
+function chipBlue(text) {
+  return `<span style="background:#eff6ff;color:#1d4ed8;padding:2px 7px;border-radius:4px;font-size:11px;font-weight:500">${text}</span>`;
+}
+
+function riskPill(level) {
+  const map = {
+    'low':              '#dcfce7;color:#166534',
+    'low-to-moderate':  '#f0fdf4;color:#16a34a',
+    'moderate':         '#fef9c3;color:#854d0e',
+    'moderately-high':  '#fff7ed;color:#c2410c',
+    'high':             '#fef2f2;color:#b91c1c',
+    'very-high':        '#fce7f3;color:#9d174d',
+  };
+  const style = map[level?.toLowerCase()] || '#f3f4f6;color:#374151';
+  return `<span style="background:${style};padding:2px 8px;border-radius:999px;font-size:11px;font-weight:500">${level}</span>`;
+}
+
+function statusPill(s) {
+  const map = {
+    success:  'background:#dcfce7;color:#166534',
+    failed:   'background:#fef2f2;color:#b91c1c',
+    running:  'background:#fef9c3;color:#854d0e',
+    triggered:'background:#eff6ff;color:#1d4ed8',
+  };
+  return `<span style="${map[s]||'background:#f3f4f6;color:#374151'};padding:2px 8px;border-radius:4px;font-size:11px;font-weight:500">${s}</span>`;
+}
+
+// ═══════════════════════════════════════════════
+//  BOOT
+// ═══════════════════════════════════════════════
+init();
+</script>
+</body>
+</html>

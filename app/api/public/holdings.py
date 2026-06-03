@@ -14,7 +14,7 @@ router = APIRouter(prefix="/products", tags=["holdings"])
 def get_holdings(
     product: Product = Depends(get_product),
     db: Session = Depends(get_db),
-    as_of: date | None = Query(None, description="Defaults to latest active holdings"),
+    as_of: date | None = Query(None, description="Defaults to current active holdings"),
 ):
     q = (
         db.query(Holding, Security)
@@ -23,6 +23,7 @@ def get_holdings(
     )
 
     if as_of:
+        # SCD2 point-in-time filter: holding was open on that date
         q = q.filter(Holding.effective_from <= as_of).filter(
             (Holding.effective_to.is_(None)) | (Holding.effective_to >= as_of)
         )

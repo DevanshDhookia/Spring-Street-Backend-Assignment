@@ -6,7 +6,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     ports:
-      - "5432:5432"
+      - "5433:5432"   # 5433 on host → avoids conflict if local postgres is on 5432
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -28,6 +28,10 @@ services:
     ports:
       - "8000:8000"
     env_file: .env
+    environment:
+      # Override localhost URLs from .env — inside Docker, services are reached by name
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/prisma_factsheet
+      REDIS_URL: redis://redis:6379/0
     depends_on:
       db:
         condition: service_healthy

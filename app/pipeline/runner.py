@@ -1,11 +1,11 @@
 """
-Pipeline orchestrator.
+Pipeline orchestrator — runs all five stages in order.
 
-Runs all stages in sequence. All stage writes share one session and are
-committed atomically at the end — any failure rolls back the entire run,
-leaving the previous day's data intact for users.
+Stages 1-4 share one session; a single commit makes all writes atomic.
+If any stage raises, the rollback leaves yesterday's data intact for users.
+Stage 5 (cache_warm) runs after the commit so Redis always mirrors the DB.
 
-Usage:
+CLI usage:
     python -m app.pipeline.runner
     python -m app.pipeline.runner --date 2024-06-01
 """
@@ -26,7 +26,7 @@ def run_pipeline(target_date: date | None = None, triggered_by: str = "manual") 
     run_id = uuid.uuid4()
     timings: dict = {}
 
-    # Commit the "running" record immediately so the API can reflect pipeline state
+    # Separate session so the API can see "running" status while stage 1 runs
     _register_run(run_id, target_date, triggered_by)
     print(f"[pipeline] run_id={run_id}  date={target_date}")
 
@@ -45,10 +45,8 @@ def run_pipeline(target_date: date | None = None, triggered_by: str = "manual") 
         stage("ingest_classification", ingest_classification.run)
         rows = stage("derive", derive.run)
 
-        # Single atomic commit — rolls back everything if anything above failed
-        session.commit()
+        session.commit()  # single atomic write for all four stages
 
-        # Cache warm runs after commit so Redis always reflects persisted state
         t0 = time.perf_counter()
         cache_warm.run(session, target_date)
         timings["cache_warm_ms"] = round((time.perf_counter() - t0) * 1000)

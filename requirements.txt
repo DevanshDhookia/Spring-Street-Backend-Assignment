@@ -5,6 +5,7 @@ alembic==1.13.3
 psycopg2-binary==2.9.9
 redis==5.1.1
 yfinance==0.2.43
+curl_cffi==0.7.4
 pandas==2.2.3
 numpy==1.26.4
 apscheduler==3.10.4

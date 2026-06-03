@@ -1,10 +1,10 @@
 """
 GET /products/{code}/factsheet
 
-Serving strategy (Decision 14):
-  - Pipeline running   → serve from DB (safe, never partial)
-  - Redis cache hit    → serve from Redis (fast path)
-  - Cache miss         → build from DB and return
+Serving strategy (Decision D14):
+  pipeline running → build from DB (never serves partial data)
+  Redis hit        → return cached JSON  (fast path, ~0.5 ms)
+  Redis miss       → build from DB, return
 """
 import json
 
@@ -28,7 +28,6 @@ def get_factsheet(
         cached = client.get(f"factsheet:{product.code}")
         if cached:
             return json.loads(cached)
-
     return _build_from_db(db, product)
 
 
@@ -55,20 +54,14 @@ def _build_from_db(db: Session, product: Product) -> dict:
     if latest_date:
         rows = db.query(Exposure).filter_by(product_id=product.id, as_of_date=latest_date).all()
         for e in rows:
-            exposures.setdefault(e.dimension, []).append(
-                {"bucket": e.bucket, "weight": float(e.weight)}
-            )
+            exposures.setdefault(e.dimension, []).append({"bucket": e.bucket, "weight": float(e.weight)})
         for dim in exposures:
             exposures[dim].sort(key=lambda x: x["weight"], reverse=True)
 
     perf_summary = None
     direct = next((p for p in plans if p.plan_type == "direct" and p.option_type == "growth"), None)
     if direct and latest_date:
-        perf = (
-            db.query(Performance)
-            .filter_by(plan_id=direct.id, as_of_date=latest_date, lookback="1Y")
-            .first()
-        )
+        perf = db.query(Performance).filter_by(plan_id=direct.id, as_of_date=latest_date, lookback="1Y").first()
         if perf:
             perf_summary = {
                 "trailing_returns": perf.trailing_returns,
@@ -79,9 +72,4 @@ def _build_from_db(db: Session, product: Product) -> dict:
                 "holdings_count": perf.holdings_count,
             }
 
-    return {
-        "as_of": latest_date.isoformat() if latest_date else None,
-        "navs": navs,
-        "exposures": exposures,
-        "performance": perf_summary,
-    }
+    return {"as_of": latest_date.isoformat() if latest_date else None, "navs": navs, "exposures": exposures, "performance": perf_summary}

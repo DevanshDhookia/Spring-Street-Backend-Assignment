@@ -1,4 +1,4 @@
-"""Serialize derived factsheet data to Redis after each successful pipeline run."""
+"""Stage 5 — serialize the latest factsheet into Redis after each successful pipeline commit."""
 import json
 from datetime import date
 
@@ -10,8 +10,7 @@ from app.redis_client import client
 
 
 def run(session: Session, target_date: date) -> None:
-    products = session.query(Product).filter_by(is_active=True).all()
-    for product in products:
+    for product in session.query(Product).filter_by(is_active=True).all():
         _warm(session, product, target_date)
 
 
@@ -37,13 +36,11 @@ def _warm(session, product, target_date: date) -> None:
     )
     exposures: dict[str, list] = {}
     for e in exposure_rows:
-        exposures.setdefault(e.dimension, []).append(
-            {"bucket": e.bucket, "weight": float(e.weight)}
-        )
+        exposures.setdefault(e.dimension, []).append({"bucket": e.bucket, "weight": float(e.weight)})
     for dim in exposures:
         exposures[dim].sort(key=lambda x: x["weight"], reverse=True)
 
-    # Cache direct-growth performance as the headline (most prominent on factsheets)
+    # Direct-Growth is the canonical plan shown on factsheet headlines
     direct = next((p for p in plans if p.plan_type == "direct" and p.option_type == "growth"), None)
     perf_summary = None
     if direct:
@@ -62,11 +59,5 @@ def _warm(session, product, target_date: date) -> None:
                 "holdings_count": perf.holdings_count,
             }
 
-    payload = json.dumps({
-        "as_of": target_date.isoformat(),
-        "navs": navs,
-        "exposures": exposures,
-        "performance": perf_summary,
-    })
-
+    payload = json.dumps({"as_of": target_date.isoformat(), "navs": navs, "exposures": exposures, "performance": perf_summary})
     client.setex(f"factsheet:{product.code}", settings.cache_ttl, payload)

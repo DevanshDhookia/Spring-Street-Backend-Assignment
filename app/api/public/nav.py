@@ -20,11 +20,7 @@ def get_nav(
     to_date: date | None = Query(None),
     limit: int = Query(365, le=1825),
 ):
-    plan = db.query(Plan).filter_by(
-        product_id=product.id,
-        plan_type=plan_type,
-        option_type=option_type,
-    ).first()
+    plan = db.query(Plan).filter_by(product_id=product.id, plan_type=plan_type, option_type=option_type).first()
 
     series = []
     if plan:
@@ -35,12 +31,7 @@ def get_nav(
             q = q.filter(NAV.nav_date <= to_date)
         rows = q.order_by(NAV.nav_date.desc()).limit(limit).all()
         series = [
-            NAVPoint(
-                date=r.nav_date,
-                nav=float(r.nav),
-                nav_inr=float(r.nav_inr) if r.nav_inr else None,
-                aum=float(r.aum) if r.aum else None,
-            )
+            NAVPoint(date=r.nav_date, nav=float(r.nav), nav_inr=float(r.nav_inr) if r.nav_inr else None, aum=float(r.aum) if r.aum else None)
             for r in reversed(rows)
         ]
 

@@ -184,20 +184,21 @@ def _write_exposures(session, product, holdings, price_map, aum, target_date, ru
 # performance
 
 def _write_performance(session, product, plans, target_date, run_id):
-    bench_series = _bench_series(session, product, target_date)
+    bench_series = _bench_series(session, target_date, product.primary_benchmark_id)
+    add_bench_series = _bench_series(session, target_date, product.additional_benchmark_id)
 
     for plan in plans:
         for lookback, days in [("1Y", 252), ("3Y", 756), ("5Y", 1260)]:
-            _write_plan_perf(session, plan, product, target_date, run_id, days, lookback, bench_series)
+            _write_plan_perf(session, plan, product, target_date, run_id, days, lookback, bench_series, add_bench_series)
 
 
-def _bench_series(session, product, target_date) -> Optional[pd.Series]:
-    if not product.primary_benchmark_id:
+def _bench_series(session, target_date, benchmark_id) -> Optional[pd.Series]:
+    if not benchmark_id:
         return None
     rows = (
         session.query(Price.trade_date, Price.adj_close, Price.close)
         .filter(
-            Price.security_id == product.primary_benchmark_id,
+            Price.security_id == benchmark_id,
             Price.trade_date <= target_date,
         )
         .order_by(Price.trade_date)
@@ -211,7 +212,7 @@ def _bench_series(session, product, target_date) -> Optional[pd.Series]:
     )
 
 
-def _write_plan_perf(session, plan, product, target_date, run_id, days, lookback, bench_series):
+def _write_plan_perf(session, plan, product, target_date, run_id, days, lookback, bench_series, add_bench_series):
     start = target_date - timedelta(days=days)
     nav_rows = (
         session.query(NAV.nav_date, NAV.nav)
@@ -230,6 +231,12 @@ def _write_plan_perf(session, plan, product, target_date, run_id, days, lookback
         bench_window = bench_series[bench_series.index >= start]
         if len(bench_window) >= 2:
             bench_trailing = _trailing_returns(bench_window)
+
+    add_bench_trailing = {}
+    if add_bench_series is not None:
+        add_bench_window = add_bench_series[add_bench_series.index >= start]
+        if len(add_bench_window) >= 2:
+            add_bench_trailing = _trailing_returns(add_bench_window)
 
     risk: dict = {}
     if bench_series is not None and len(fund_returns) >= 20:
@@ -260,7 +267,7 @@ def _write_plan_perf(session, plan, product, target_date, run_id, days, lookback
         "trailing_returns": _trailing_returns(navs),
         "calendar_year_returns": _calendar_returns(navs),
         "primary_benchmark_returns": bench_trailing or None,
-        "additional_benchmark_returns": None,
+        "additional_benchmark_returns": add_bench_trailing or None,
         "growth_of_10k": growth_of_10k,
         "lookback": lookback,
         "portfolio_pe": port_pe,

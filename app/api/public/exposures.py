@@ -17,16 +17,10 @@ def get_exposures(
     product: Product = Depends(get_product),
     db: Session = Depends(get_db),
     dimension: str | None = Query(None, description="sector | country | region | cap | asset_class"),
-    as_of: date | None = Query(None, description="Defaults to latest available date"),
+    as_of: date | None = Query(None),
 ):
-    # Resolve as_of to the latest date we have data for
     if not as_of:
-        latest = (
-            db.query(Exposure.as_of_date)
-            .filter_by(product_id=product.id)
-            .order_by(Exposure.as_of_date.desc())
-            .first()
-        )
+        latest = db.query(Exposure.as_of_date).filter_by(product_id=product.id).order_by(Exposure.as_of_date.desc()).first()
         as_of = latest[0] if latest else None
 
     if not as_of:
@@ -41,10 +35,7 @@ def get_exposures(
     if dimension:
         return [ExposureOut(bucket=r.bucket, weight=float(r.weight)) for r in rows]
 
-    # Return all dimensions grouped
     result: dict = {}
     for r in rows:
-        result.setdefault(r.dimension, []).append(
-            ExposureOut(bucket=r.bucket, weight=float(r.weight))
-        )
+        result.setdefault(r.dimension, []).append(ExposureOut(bucket=r.bucket, weight=float(r.weight)))
     return result
