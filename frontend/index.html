@@ -88,7 +88,7 @@
   </div>
   <div style="display:flex;align-items:center;gap:10px">
     <span style="font-size:11px;color:#475569">API</span>
-    <input id="inp-base" type="text" value="http://localhost:8000"
+    <input id="inp-base" type="text"
       style="font-size:12px;background:#1e293b;color:#e2e8f0;border:1px solid #334155;border-radius:5px;padding:4px 8px;width:200px;outline:none">
     <span style="font-size:11px;color:#475569;margin-left:6px">Admin Token</span>
     <input id="inp-token" type="password" placeholder="changeme"
@@ -174,7 +174,7 @@
 // ═══════════════════════════════════════════════
 //  STATE
 // ═══════════════════════════════════════════════
-let BASE  = 'http://localhost:8000';
+let BASE  = window.location.origin;
 let TOKEN = 'changeme';
 let currentCode = null;
 let currentTab  = 'factsheet';

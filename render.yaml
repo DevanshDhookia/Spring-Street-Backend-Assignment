@@ -1,0 +1,39 @@
+services:
+  - type: web
+    name: prisma-factsheet
+    runtime: docker
+    plan: free
+    healthCheckPath: /health
+    dockerfilePath: ./Dockerfile
+    preDeployCommand: "alembic upgrade head"
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: prisma-factsheet-db
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: redis
+          name: prisma-factsheet-redis
+          property: connectionString
+      - key: PIPELINE_CRON
+        value: "0 22 * * 1-5"
+      - key: PIPELINE_TIMEZONE
+        value: America/New_York
+      - key: RISK_FREE_RATE
+        value: "0.05"
+      - key: CACHE_TTL
+        value: "86400"
+      - key: ADMIN_TOKEN
+        generateValue: true
+
+  - type: redis
+    name: prisma-factsheet-redis
+    plan: free
+    ipAllowList: []
+
+databases:
+  - name: prisma-factsheet-db
+    plan: free
+    databaseName: prisma_factsheet
+    user: postgres

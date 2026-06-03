@@ -1,9 +1,11 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
 
 from app.api.admin import holdings as admin_holdings
 from app.api.admin import pipeline as admin_pipeline
@@ -59,3 +61,8 @@ app.include_router(admin_pipeline.router)
 @app.get("/health", tags=["ops"])
 def health():
     return {"status": "ok"}
+
+
+@app.get("/", include_in_schema=False)
+def frontend():
+    return FileResponse(Path(__file__).parent.parent / "frontend" / "index.html")
